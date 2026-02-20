@@ -1,3 +1,4 @@
+
 package com.example.deepsleep.service
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -193,18 +194,16 @@ class DeepSleepService : Service() {
     }
 
     private fun handleScreenOff() {
-        val currentTime = System.currentTimeMillis()
-        val debounce = settingsRepo.getSettings().debounceInterval * 1000
-
-        if (currentTime - lastScreenOffTime < debounce) {
-            serviceScope.launch {
-                log("⏳ 息屏防抖，忽略")
-            }
-            return
-        }
-
-        lastScreenOffTime = currentTime
         serviceScope.launch {
+            val currentTime = System.currentTimeMillis()
+            val debounce = settingsRepo.getSettings().debounceInterval * 1000
+
+            if (currentTime - lastScreenOffTime < debounce) {
+                log("⏳ 息屏防抖，忽略")
+                return@launch
+            }
+
+            lastScreenOffTime = currentTime
             log("🌙 屏幕关闭")
             statsRepo.recordStateChange()
 
@@ -232,18 +231,16 @@ class DeepSleepService : Service() {
     }
 
     private fun handleScreenOn() {
-        val currentTime = System.currentTimeMillis()
-        val debounce = settingsRepo.getSettings().debounceInterval * 1000
-
-        if (currentTime - lastScreenOnTime < debounce) {
-            serviceScope.launch {
-                log("⏳ 亮屏防抖，忽略")
-            }
-            return
-        }
-
-        lastScreenOnTime = currentTime
         serviceScope.launch {
+            val currentTime = System.currentTimeMillis()
+            val debounce = settingsRepo.getSettings().debounceInterval * 1000
+
+            if (currentTime - lastScreenOnTime < debounce) {
+                log("⏳ 亮屏防抖，忽略")
+                return@launch
+            }
+
+            lastScreenOnTime = currentTime
             log("☀️ 屏幕开启")
             statsRepo.recordStateChange()
 

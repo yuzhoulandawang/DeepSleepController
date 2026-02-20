@@ -37,6 +37,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # ---------- 新增调试步骤 ----------
+      - name: Debug duplicate theme
+        run: |
+          echo "=== styles.xml content ==="
+          cat app/src/main/res/values/styles.xml
+          echo "=== themes.xml content ==="
+          cat app/src/main/res/values/themes.xml
+          echo "=== Searching for Theme.DeepSleepController in all resource files ==="
+          find app/src/main/res -name "*.xml" -exec grep -l "Theme.DeepSleepController" {} \;
+
+      - name: Clean build (avoid resource cache issues)
+        run: ./gradlew clean
+      # -------------------------------
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 

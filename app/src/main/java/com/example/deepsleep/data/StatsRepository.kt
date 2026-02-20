@@ -23,18 +23,18 @@ class StatsRepository {
             .filter { it.contains("=") }
             .associate { 
                 val parts = it.split("=", limit = 2)
-                parts[0].trim() to parts[1].trim().toIntOrNull() 
+                parts[0].trim() to parts[1].trim()
             }
         
         Statistics(
-            totalEnterCount = map["TOTAL_ENTER_COUNT"] ?: 0,
-            totalEnterSuccess = map["TOTAL_ENTER_SUCCESS"] ?: 0,
-            totalExitCount = map["TOTAL_EXIT_COUNT"] ?: 0,
-            totalExitSuccess = map["TOTAL_EXIT_SUCCESS"] ?: 0,
-            totalAutoExitCount = map["TOTAL_AUTO_EXIT_COUNT"] ?: 0,
-            totalAutoExitRecover = map["TOTAL_AUTO_EXIT_RECOVER"] ?: 0,
-            totalMaintenanceCount = map["TOTAL_MAINTENANCE_COUNT"] ?: 0,
-            totalStateChangeCount = map["TOTAL_STATE_CHANGE_COUNT"] ?: 0,
+            totalEnterCount = map["TOTAL_ENTER_COUNT"]?.toIntOrNull() ?: 0,
+            totalEnterSuccess = map["TOTAL_ENTER_SUCCESS"]?.toIntOrNull() ?: 0,
+            totalExitCount = map["TOTAL_EXIT_COUNT"]?.toIntOrNull() ?: 0,
+            totalExitSuccess = map["TOTAL_EXIT_SUCCESS"]?.toIntOrNull() ?: 0,
+            totalAutoExitCount = map["TOTAL_AUTO_EXIT_COUNT"]?.toIntOrNull() ?: 0,
+            totalAutoExitRecover = map["TOTAL_AUTO_EXIT_RECOVER"]?.toIntOrNull() ?: 0,
+            totalMaintenanceCount = map["TOTAL_MAINTENANCE_COUNT"]?.toIntOrNull() ?: 0,
+            totalStateChangeCount = map["TOTAL_STATE_CHANGE_COUNT"]?.toIntOrNull() ?: 0,
             serviceStartTime = map["SERVICE_START_TIME"]?.toLongOrNull() ?: 0
         )
     }

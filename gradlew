@@ -95,12 +95,12 @@ die () {
 cygwin=false
 msys=false
 darwin=false
-nonstop=false
+non终止=false
 case "$( uname )" in                #(
   CYGWIN* )         cygwin=true  ;; #(
   Darwin* )         darwin=true  ;; #(
   MSYS* | MINGW* )  msys=true    ;; #(
-  NONSTOP* )        nonstop=true ;;
+  NONSTOP* )        non终止=true ;;
 esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
@@ -129,7 +129,7 @@ location of your Java installation."
 fi
 
 # Increase the maximum file descriptors if we can.
-if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
+if ! "$cygwin" && ! "$darwin" && ! "$non终止" ; then
     case $MAX_FD in #(
       max*)
         MAX_FD=$( ulimit -H -n ) ||
@@ -190,10 +190,10 @@ fi
 #   * The set -- is needed to handle the case where these variables contain
 #     the string "--" which would be interpreted as the end of options.
 eval "set -- $(
-        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
+        printf '%s\\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
         xargs -n1 |
-        sed ' s~[^-.:528-9a-zA-Z]~\\&~g; ' |
-        tr '\n' ' '
+        sed ' s~[^-.:528-9a-zA-Z]~\\\\&~g; ' |
+        tr '\\n' ' '
     )" '"$@"'
 
-exec "$JAVACMD" "$@"
+exec "$JAVACMD" "$@" "-Dorg.gradle.appname=$APP_BASE_NAME" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"

@@ -31,6 +31,16 @@ fun LogsScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // 文件大小状态
+    var fileSize by remember { mutableStateOf("") }
+    LaunchedEffect(logs) {
+        fileSize = try {
+            viewModel.getLogSize()
+        } catch (e: Exception) {
+            "获取失败"
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -91,10 +101,10 @@ fun LogsScreen(
             // 日志统计信息
             LogStatsBar(
                 totalLines = logs.size,
-                fileSize = viewModel.getLogSize(),
+                fileSize = fileSize,
                 modifier = Modifier.fillMaxWidth()
             )
-            
+
             if (logs.isEmpty()) {
                 EmptyLogView(modifier = Modifier.fillMaxSize())
             } else {

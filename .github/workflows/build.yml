@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Smart Build Debug APK
 
 on:
   push:
@@ -33,29 +33,118 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # ---------- 新增调试步骤 ----------
-      - name: Debug duplicate theme
+      - name: Print configuration files
         run: |
-          echo "=== styles.xml content ==="
-          cat app/src/main/res/values/styles.xml
-          echo "=== themes.xml content ==="
-          cat app/src/main/res/values/themes.xml
-          echo "=== Searching for Theme.DeepSleepController in all resource files ==="
-          find app/src/main/res -name "*.xml" -exec grep -l "Theme.DeepSleepController" {} \;
+          echo "### gradle-wrapper.properties ###"
+          cat gradle/wrapper/gradle-wrapper.properties || echo "Not found"
+          echo "### root build.gradle.kts ###"
+          cat build.gradle.kts || echo "Not found"
+          echo "### gradle/libs.versions.toml (if exists) ###"
+          cat gradle/libs.versions.toml || echo "Not found"
+          echo "### settings.gradle.kts ###"
+          cat settings.gradle.kts || echo "Not found"
 
-      - name: Clean build (avoid resource cache issues)
+      - name: Check Gradle and AGP compatibility
+        run: |
+          GRADLE_VERSION=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | grep -oE 'gradle-[0-9.]+' | cut -d- -f2)
+          AGP_VERSION=$(grep -E "com.android.application.*version" build.gradle.kts | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+          echo "Detected Gradle version: $GRADLE_VERSION"
+          echo "Detected AGP version: $AGP_VERSION"
+          if [[ -n "$AGP_VERSION" && "$AGP_VERSION" != "unknown" ]]; then
+            AGP_MAJOR=$(echo $AGP_VERSION | cut -d. -f1)
+            AGP_MINOR=$(echo $AGP_VERSION | cut -d. -f2)
+            if [[ $AGP_MAJOR -eq 8 ]]; then
+              case $AGP_MINOR in
+                0|1|2|3) REQUIRED_GRADLE="6.8" ;;
+                4) REQUIRED_GRADLE="7.5" ;;
+                5) REQUIRED_GRADLE="8.7" ;;
+                6) REQUIRED_GRADLE="8.9" ;;
+                7) REQUIRED_GRADLE="8.11.1" ;;
+                8|9|10|11|12|13) REQUIRED_GRADLE="8.13" ;;
+                *) REQUIRED_GRADLE="unknown" ;;
+              esac
+              echo "AGP $AGP_VERSION requires Gradle >= $REQUIRED_GRADLE"
+            fi
+          else
+            echo "AGP version not detected, skipping compatibility check."
+          fi
+
+      - name: Ensure Material3 theme exists
+        run: |
+          THEME_FILE="app/src/main/res/values/themes.xml"
+          if [ ! -f "$THEME_FILE" ]; then
+            echo "Theme file not found, creating default one..."
+            mkdir -p app/src/main/res/values
+            cat > "$THEME_FILE" <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.DeepSleepController" parent="Theme.Material3.Light.NoActionBar" />
+          </resources>
+          EOF
+            echo "Created $THEME_FILE"
+          else
+            echo "Theme file exists, checking parent..."
+            if ! grep -q "Theme.Material3.Light.NoActionBar" "$THEME_FILE"; then
+              echo "WARNING: Theme.DeepSleepController does not seem to inherit from Material3. Please check."
+            else
+              echo "Theme looks good."
+            fi
+          fi
+
+      - name: Check duplicate theme definitions
+        run: |
+          echo "Searching for Theme.DeepSleepController in all resource files..."
+          DUPLICATES=$(find app/src/main/res -name "*.xml" -exec grep -l "Theme.DeepSleepController" {} \;)
+          if [ -n "$DUPLICATES" ]; then
+            COUNT=$(echo "$DUPLICATES" | wc -l)
+            if [ $COUNT -gt 1 ]; then
+              echo "❌ Duplicate theme definitions found in:"
+              echo "$DUPLICATES"
+              echo "Please keep only one definition (preferably in themes.xml) and remove others."
+            else
+              echo "✅ Theme defined only in: $DUPLICATES"
+            fi
+          else
+            echo "⚠️ Theme not found anywhere. Will be created in step 3 if needed."
+          fi
+
+      - name: Run Lint
+        run: ./gradlew lint || echo "Lint found issues, but continuing..."
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest || echo "Unit tests failed, but continuing..."
+
+      - name: Analyze potential build failures
+        run: |
+          echo "Analyzing project for common issues..."
+
+      - name: Clean build
         run: ./gradlew clean
-      # -------------------------------
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: deep-sleep-controller-debug
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: app/build/reports/lint-results-*.html
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/

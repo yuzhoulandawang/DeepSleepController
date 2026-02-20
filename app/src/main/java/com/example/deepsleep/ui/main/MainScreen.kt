@@ -60,17 +60,17 @@ fun MainScreen(
         ) {
             // Root 状态
             RootStatusCard(hasRoot = uiState.hasRoot)
-            
+
             // 服务状态和 Doze 状态
             ServiceStatusCard(
                 isRunning = uiState.isServiceRunning,
                 dozeState = uiState.dozeState,
                 runtime = uiState.serviceRuntime
             )
-            
+
             // 统计卡片
             StatsCard(stats = uiState.stats)
-            
+
             // 控制按钮
             ControlButtons(
                 isServiceRunning = uiState.isServiceRunning,
@@ -90,12 +90,14 @@ fun MainScreen(
                     }
                 },
                 onStopService = {
-                    context.startService(
-                        Intent(context, DeepSleepService::class.java).apply {
-                            action = DeepSleepService.ACTION_STOP
-                        }
-                    )
-                    snackbarHostState.showSnackbar("⏹️ 服务已停止")
+                    scope.launch {   // 修复：添加协程作用域
+                        context.startService(
+                            Intent(context, DeepSleepService::class.java).apply {
+                                action = DeepSleepService.ACTION_STOP
+                            }
+                        )
+                        snackbarHostState.showSnackbar("⏹️ 服务已停止")
+                    }
                 },
                 onForceEnter = {
                     scope.launch {
@@ -114,7 +116,7 @@ fun MainScreen(
                     }
                 }
             )
-            
+
             // 功能入口
             FeatureRow(
                 onLogsClick = onNavigateToLogs,
@@ -124,6 +126,7 @@ fun MainScreen(
     }
 }
 
+// 以下辅助组件保持不变
 @Composable
 fun RootStatusCard(hasRoot: Boolean) {
     Card(

@@ -1,4 +1,3 @@
-
 package com.example.deepsleep.data
 
 import android.content.Context
@@ -59,6 +58,7 @@ class LogRepository {
         }
     }
     
+    // 添加 suspend 关键字
     suspend fun getLogSize(): String {
         val result = RootCommander.exec("wc -c $logPath 2>/dev/null")
         val bytes = result.out.firstOrNull()?.trim()?.split(" ")?.firstOrNull()?.toLongOrNull() ?: 0

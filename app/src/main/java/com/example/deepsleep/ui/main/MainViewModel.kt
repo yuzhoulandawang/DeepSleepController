@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 
 data class MainUiState(
     val hasRoot: Boolean = false,
+    val isRootRequested: Boolean = false, // 是否已请求过授权
     val dozeState: DozeState = DozeState.UNKNOWN,
     val isServiceRunning: Boolean = false,
     val serviceRuntime: String = "未运行",
@@ -26,25 +27,39 @@ data class MainUiState(
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    
+
     private val statsRepository = StatsRepository()
-    
+
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
-    
+
     init {
-        checkRoot()
+        // 启动时请求 root 授权（仅一次）
+        viewModelScope.launch {
+            requestRootIfNeeded()
+        }
         startStatusMonitor()
         loadStats()
     }
-    
-    private fun checkRoot() {
-        viewModelScope.launch {
-            val hasRoot = RootCommander.checkRoot()
-            _uiState.value = _uiState.value.copy(hasRoot = hasRoot)
-        }
+
+    // 请求 root 授权（如果尚未请求过）
+    private suspend fun requestRootIfNeeded() {
+        if (_uiState.value.isRootRequested) return
+        _uiState.value = _uiState.value.copy(isRootRequested = true)
+
+        val granted = RootCommander.requestRootAccess()
+        _uiState.value = _uiState.value.copy(hasRoot = granted)
     }
-    
+
+    // 刷新 root 状态（例如在 onResume 中调用）
+    suspend fun refreshRootStatus() {
+        val hasRoot = RootCommander.checkRoot()
+        _uiState.value = _uiState.value.copy(hasRoot = hasRoot)
+    }
+
+    // 检查当前 root 状态（直接从 uiState 获取，或实时检查）
+    suspend fun hasRoot(): Boolean = RootCommander.checkRoot()
+
     private fun startStatusMonitor() {
         viewModelScope.launch {
             while (isActive) {
@@ -59,7 +74,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     private suspend fun updateRuntime() {
         val stats = statsRepository.loadStats()
         if (stats.serviceStartTime > 0) {
@@ -72,22 +87,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(serviceRuntime = runtime)
         }
     }
-    
+
     private fun loadStats() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(stats = statsRepository.loadStats())
         }
     }
-    
+
     fun refreshStats() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(stats = statsRepository.loadStats())
         }
     }
-    
-    suspend fun hasRoot(): Boolean = RootCommander.checkRoot()
-    
+
     suspend fun forceEnterDeepSleep(): Boolean = DozeController.enterDeepSleep()
-    
+
     suspend fun forceExitDeepSleep(): Boolean = DozeController.exitDeepSleep()
 }

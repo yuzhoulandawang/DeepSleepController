@@ -1,5 +1,6 @@
 package com.example.deepsleep
 
+import com.example.deepsleep.BuildConfig
 import android.app.Application
 import com.topjohnwu.superuser.Shell
 

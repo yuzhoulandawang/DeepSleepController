@@ -99,8 +99,8 @@ object WaltOptimizer {
             "echo 1000 > /proc/sys/vm/dirty_expire_centisecs 2>/dev/null || true",
             "echo 3000 > /proc/sys/vm/dirty_writeback_centisecs 2>/dev/null || true",
             "echo 0 > /proc/sys/vm/page-cluster 2>/dev/null || true",
-            "for f in /sys/block/*/queue/scheduler; do echo noop > \\$f 2>/dev/null || echo deadline > \\$f 2>/dev/null || true; done",
-            "for f in /sys/block/*/queue/read_ahead_kb; do echo 128 > \\$f 2>/dev/null || true; done"
+            """for f in /sys/block/*/queue/scheduler; do echo noop > ${'$'}f 2>/dev/null || echo deadline > ${'$'}f 2>/dev/null || true; done""",
+            """for f in /sys/block/*/queue/read_ahead_kb; do echo 128 > ${'$'}f 2>/dev/null || true; done"""
         )
         
         RootCommander.execBatch(commands)

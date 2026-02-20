@@ -1,10 +1,6 @@
-name: Build Debug APK
+name: Smart Build Debug APK (Manual)
 
 on:
-  # push:
-  #   branches: [ "main" ]
-  # pull_request:
-  #   branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -37,6 +33,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # 诊断步骤
       - name: Print configuration files
         run: |
           echo "### gradle-wrapper.properties ###"
@@ -118,33 +115,68 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest || echo "Unit tests failed, but continuing..."
 
-      - name: Analyze potential build failures
+      # 构建并保存完整日志（即使失败也保存）
+      - name: Build Debug APK (with log capture)
+        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+        continue-on-error: true   # 确保即使构建失败，后续步骤仍会执行
+
+      # 分析错误并生成报告（无论构建是否成功都运行）
+      - name: Analyze errors and generate report
+        if: always()
         run: |
-          echo "Analyzing project for common issues..."
+          echo "# Build Error Summary" > error-report.md
+          echo "" >> error-report.md
+          echo "## 🔍 Diagnostic Results" >> error-report.md
+          echo "" >> error-report.md
+          
+          if [ -f build.log ]; then
+            if grep -q "FAILURE:" build.log; then
+              echo "## ❌ Build Failed" >> error-report.md
+              echo "" >> error-report.md
+              echo "### First 30 errors/warnings from build log:" >> error-report.md
+              echo '```' >> error-report.md
+              grep -E "^e:|^error:|FAILURE:|Unresolved reference|Suspend function|type mismatch" build.log | head -30 >> error-report.md
+              echo '```' >> error-report.md
+              echo "" >> error-report.md
+              echo "### Possible categories:" >> error-report.md
+              
+              if grep -q "Unresolved reference.*BuildConfig" build.log; then
+                echo "- 🔧 **BuildConfig missing**: Add import or enable buildConfig feature." >> error-report.md
+              fi
+              if grep -q "Suspend function.*should be called only from a coroutine" build.log; then
+                echo "- 🔧 **Suspend function called outside coroutine**: Wrap calls with lifecycleScope/ viewModelScope/ rememberCoroutineScope." >> error-report.md
+              fi
+              if grep -q "resource.*not found" build.log; then
+                echo "- 🔧 **Resource not found**: Check theme inheritance or missing dependencies (e.g., Material)." >> error-report.md
+              fi
+            else
+              echo "## ✅ Build Succeeded" >> error-report.md
+            fi
+          else
+            echo "## ⚠️ Build log not found" >> error-report.md
+          fi
+          
+          echo "" >> error-report.md
+          echo "---" >> error-report.md
+          echo "Full build log is attached as \`build.log\`. Lint and test reports are also available if generated." >> error-report.md
 
-      - name: Clean build
-        run: ./gradlew clean
+      # 强制上传构建报告（即使某些文件不存在）
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            build.log
+            error-report.md
+            app/build/reports/lint-results-*.html
+            app/build/reports/tests/
+          if-no-files-found: ignore
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload APK
-        if: success() || failure()
+      # 上传 APK（仅在构建成功时存在）
+      - name: Upload APK (if generated)
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: deep-sleep-controller-debug
           path: app/build/outputs/apk/debug/*.apk
-
-      - name: Upload lint report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-results
-          path: app/build/reports/lint-results-*.html
-
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: app/build/reports/tests/
